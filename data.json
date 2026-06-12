@@ -1,11 +1,11 @@
 {
-  "last_updated": "2026-06-12T11:13:02Z",
+  "last_updated": "2026-06-12T11:15:25Z",
   "tournaments": [
     {
       "id": "demo-open-2026",
       "name": "Demo Open 2026",
       "date": "2026-07-18",
-      "status": "locked",
+      "status": "open",
       "groups": [
         {
           "id": "mens-singles",
