@@ -1,0 +1,434 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>🏸 Badminton Tournaments</title>
+<style>
+  :root {
+    --bg: #0e1726;
+    --card: #16213a;
+    --card2: #1d2b4a;
+    --accent: #34d399;
+    --accent2: #60a5fa;
+    --warn: #fbbf24;
+    --danger: #f87171;
+    --text: #e6edf7;
+    --muted: #8aa0c4;
+    --radius: 14px;
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body {
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+    background: linear-gradient(160deg, #0e1726 0%, #101e35 60%, #0d1f2e 100%);
+    color: var(--text);
+    min-height: 100vh;
+  }
+  .wrap { max-width: 760px; margin: 0 auto; padding: 16px 14px 80px; }
+  header { text-align: center; padding: 18px 0 10px; }
+  header h1 { font-size: 1.5rem; letter-spacing: .5px; }
+  header .sub { color: var(--muted); font-size: .85rem; margin-top: 4px; }
+
+  .pills { display: flex; gap: 8px; overflow-x: auto; padding: 14px 2px 10px; }
+  .pill {
+    flex: 0 0 auto; padding: 8px 16px; border-radius: 999px; cursor: pointer;
+    background: var(--card); color: var(--muted); border: 1px solid #28395e;
+    font-size: .9rem; white-space: nowrap;
+  }
+  .pill.active { background: var(--accent); color: #06281c; font-weight: 700; border-color: var(--accent); }
+
+  .tmeta { display: flex; align-items: center; gap: 10px; margin: 6px 2px 14px; color: var(--muted); font-size: .85rem; flex-wrap: wrap; }
+  .badge { padding: 2px 10px; border-radius: 999px; font-size: .75rem; font-weight: 700; }
+  .badge.open { background: rgba(52,211,153,.15); color: var(--accent); }
+  .badge.locked { background: rgba(248,113,113,.15); color: var(--danger); }
+
+  .group-card {
+    background: var(--card); border: 1px solid #233356; border-radius: var(--radius);
+    padding: 14px 16px; margin-bottom: 14px;
+  }
+  .group-head { display: flex; justify-content: space-between; align-items: center; gap: 8px; }
+  .group-head h3 { font-size: 1.05rem; }
+  .group-head .count { color: var(--muted); font-size: .8rem; }
+  .join-btn {
+    background: var(--accent2); color: #08203f; border: none; border-radius: 999px;
+    padding: 7px 16px; font-weight: 700; font-size: .85rem; cursor: pointer;
+  }
+  .join-btn:disabled { opacity: .35; cursor: default; }
+  .entries { margin-top: 10px; display: flex; flex-direction: column; gap: 6px; }
+  .entry {
+    background: var(--card2); border-radius: 9px; padding: 8px 12px;
+    display: flex; align-items: center; gap: 8px; font-size: .92rem;
+  }
+  .entry .tag { font-size: .68rem; padding: 1px 8px; border-radius: 999px; margin-left: auto; }
+  .tag.self   { background: rgba(96,165,250,.15); color: var(--accent2); }
+  .tag.random { background: rgba(251,191,36,.15); color: var(--warn); }
+  .tag.waiting{ background: rgba(138,160,196,.15); color: var(--muted); }
+  .entry .rm { margin-left: 6px; color: var(--danger); cursor: pointer; font-weight: 700; background: none; border: none; font-size: 1rem; }
+  .empty { color: var(--muted); font-size: .85rem; padding: 8px 2px; }
+
+  /* modal */
+  .overlay {
+    position: fixed; inset: 0; background: rgba(5,10,20,.7); display: none;
+    align-items: flex-end; justify-content: center; z-index: 50;
+  }
+  .overlay.show { display: flex; }
+  .sheet {
+    background: var(--card); border-radius: 18px 18px 0 0; width: 100%; max-width: 760px;
+    padding: 20px 18px 30px; border-top: 1px solid #2c4170;
+  }
+  @media (min-width: 600px) { .overlay { align-items: center; } .sheet { border-radius: 18px; max-width: 440px; } }
+  .sheet h3 { margin-bottom: 14px; }
+  label { display: block; font-size: .8rem; color: var(--muted); margin: 12px 0 5px; }
+  input[type=text], input[type=date], input[type=password], select {
+    width: 100%; padding: 11px 12px; border-radius: 10px; border: 1px solid #2c4170;
+    background: #0f1a30; color: var(--text); font-size: 1rem;
+  }
+  .hint { font-size: .75rem; color: var(--muted); margin-top: 5px; }
+  .btn-row { display: flex; gap: 10px; margin-top: 20px; }
+  .btn {
+    flex: 1; padding: 12px; border-radius: 10px; border: none; font-size: 1rem;
+    font-weight: 700; cursor: pointer;
+  }
+  .btn.primary { background: var(--accent); color: #06281c; }
+  .btn.ghost { background: transparent; color: var(--muted); border: 1px solid #2c4170; }
+  .btn.warn { background: var(--warn); color: #3a2a00; }
+  .btn.danger { background: var(--danger); color: #3d0a0a; }
+  .btn:disabled { opacity: .5; cursor: default; }
+
+  /* toast */
+  #toast {
+    position: fixed; bottom: 22px; left: 50%; transform: translateX(-50%);
+    background: var(--card2); border: 1px solid #2c4170; color: var(--text);
+    padding: 12px 20px; border-radius: 12px; font-size: .9rem; display: none;
+    max-width: 90vw; text-align: center; z-index: 60; box-shadow: 0 8px 30px rgba(0,0,0,.5);
+  }
+
+  /* admin */
+  .admin-link { text-align: center; margin-top: 26px; }
+  .admin-link a { color: var(--muted); font-size: .8rem; cursor: pointer; text-decoration: underline; }
+  .admin-panel {
+    display: none; background: var(--card); border: 1px dashed #3a5283;
+    border-radius: var(--radius); padding: 16px; margin-top: 14px;
+  }
+  .admin-panel.show { display: block; }
+  .admin-panel h3 { font-size: .95rem; color: var(--warn); margin-bottom: 6px; }
+  .admin-actions { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 12px; }
+  .cats { display: grid; grid-template-columns: 1fr 1fr; gap: 6px; margin-top: 6px; }
+  .cats label { display: flex; align-items: center; gap: 7px; margin: 0; font-size: .85rem; color: var(--text); }
+  .updated { text-align: center; color: var(--muted); font-size: .75rem; margin-top: 18px; }
+  .spinner { display: inline-block; width: 14px; height: 14px; border: 2px solid var(--muted); border-top-color: var(--accent); border-radius: 50%; animation: spin .8s linear infinite; vertical-align: -2px; margin-right: 6px; }
+  @keyframes spin { to { transform: rotate(360deg); } }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header>
+    <h1>🏸 Badminton Tournaments</h1>
+    <div class="sub">Register yourself or your pair — unpaired players get randomly matched before the tournament</div>
+  </header>
+
+  <div class="pills" id="tournamentPills"></div>
+  <div class="tmeta" id="tournamentMeta"></div>
+  <div id="groups"></div>
+
+  <div class="admin-link"><a onclick="toggleAdmin()">Admin</a></div>
+
+  <div class="admin-panel" id="adminPanel">
+    <h3>⚙️ Admin</h3>
+    <label>Admin PIN</label>
+    <input type="password" id="adminPin" placeholder="PIN" autocomplete="off">
+    <div class="admin-actions">
+      <button class="btn warn" style="flex:1 1 100%" onclick="adminPair()">🎲 Randomly pair remaining players</button>
+      <button class="btn ghost" style="flex:1" onclick="adminLockToggle()">🔒 Lock / unlock registrations</button>
+      <button class="btn ghost" style="flex:1" onclick="openNewTournament()">➕ New tournament</button>
+    </div>
+    <div class="hint" style="margin-top:10px">While this panel is open, a ✕ appears next to each entry to remove it.</div>
+  </div>
+
+  <div class="updated" id="updated"></div>
+</div>
+
+<!-- Join modal -->
+<div class="overlay" id="joinOverlay">
+  <div class="sheet">
+    <h3 id="joinTitle">Join</h3>
+    <label>Your name</label>
+    <input type="text" id="joinName" placeholder="e.g. Upendra" autocomplete="off">
+    <div id="partnerWrap">
+      <label>Partner's name <span style="color:var(--muted)">(optional)</span></label>
+      <input type="text" id="joinPartner" placeholder="Leave blank to be randomly paired" autocomplete="off">
+      <div class="hint">If your partner already registered alone, just enter their name and you'll be paired together.</div>
+    </div>
+    <div class="btn-row">
+      <button class="btn ghost" onclick="closeOverlays()">Cancel</button>
+      <button class="btn primary" id="joinSubmit" onclick="submitJoin()">Register</button>
+    </div>
+  </div>
+</div>
+
+<!-- New tournament modal -->
+<div class="overlay" id="newTournamentOverlay">
+  <div class="sheet">
+    <h3>➕ New tournament</h3>
+    <label>Tournament name</label>
+    <input type="text" id="ntName" placeholder="e.g. Spring Smash 2026">
+    <label>Date</label>
+    <input type="date" id="ntDate">
+    <label>Groups</label>
+    <div class="cats" id="ntCats"></div>
+    <div class="btn-row">
+      <button class="btn ghost" onclick="closeOverlays()">Cancel</button>
+      <button class="btn primary" onclick="submitNewTournament()">Create</button>
+    </div>
+  </div>
+</div>
+
+<div id="toast"></div>
+
+<script>
+/* ════════════════════════════════════════════════════════════════════
+   CONFIG — fill these in after creating the GitHub repo (see README.md)
+   ════════════════════════════════════════════════════════════════════ */
+const OWNER = "YOUR_GITHUB_ORG";        // e.g. "ocbadminton"
+const REPO  = "badminton";
+// Fine-grained PAT for THIS repo only, with sole permission Actions: Read & write.
+// Split into two halves so it isn't auto-revoked by GitHub's secret scanning.
+const TOKEN_A = "";                      // first half of the token
+const TOKEN_B = "";                      // second half of the token
+/* ════════════════════════════════════════════════════════════════════ */
+
+const CATEGORIES = [
+  "Mens Singles", "Womens Singles", "Boys Singles", "Girls Singles", "Kids Singles",
+  "Mens Doubles", "Womens Doubles", "Mixed Doubles", "Boys Doubles", "Girls Doubles", "Kids Doubles"
+];
+
+let data = null;
+let currentT = null;     // selected tournament id
+let joinCtx = null;      // {tournamentId, groupId}
+let adminMode = false;
+
+const $ = id => document.getElementById(id);
+const esc = s => (s || "").replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+
+async function loadData() {
+  const res = await fetch(`data.json?t=${Date.now()}`, { cache: "no-store" });
+  data = await res.json();
+  if (!currentT || !data.tournaments.find(t => t.id === currentT)) {
+    const ts = data.tournaments;
+    currentT = ts.length ? ts[ts.length - 1].id : null;
+  }
+  render();
+}
+
+function render() {
+  // tournament pills
+  const pills = $("tournamentPills");
+  pills.innerHTML = data.tournaments.map(t =>
+    `<div class="pill ${t.id === currentT ? "active" : ""}" onclick="selectT('${t.id}')">${esc(t.name)}</div>`
+  ).join("") || `<div class="empty">No tournaments yet — create one from the Admin panel below.</div>`;
+
+  const t = data.tournaments.find(x => x.id === currentT);
+  if (!t) { $("tournamentMeta").innerHTML = ""; $("groups").innerHTML = ""; updatedLine(); return; }
+
+  $("tournamentMeta").innerHTML =
+    `${t.date ? "📅 " + esc(t.date) : ""} <span class="badge ${t.status === "locked" ? "locked" : "open"}">${t.status === "locked" ? "Registrations locked" : "Registrations open"}</span>`;
+
+  $("groups").innerHTML = t.groups.map(g => groupCard(t, g)).join("") ||
+    `<div class="empty">No groups in this tournament yet.</div>`;
+  updatedLine();
+}
+
+function groupCard(t, g) {
+  const isDoubles = g.type === "doubles";
+  const pairs = g.entries.filter(e => e.partner);
+  const waiting = g.entries.filter(e => !e.partner);
+  const playerCount = g.entries.reduce((n, e) => n + (e.partner ? 2 : 1), 0);
+
+  let rows = "";
+  if (isDoubles) {
+    rows += pairs.map(e => entryRow(t, g,
+      `${esc(e.player)} <span style="color:var(--muted)">&amp;</span> ${esc(e.partner)}`,
+      e.paired_by === "random" ? `<span class="tag random">🎲 random</span>` : `<span class="tag self">pair</span>`,
+      e.player)).join("");
+    rows += waiting.map(e => entryRow(t, g,
+      esc(e.player), `<span class="tag waiting">waiting for partner</span>`, e.player)).join("");
+  } else {
+    rows += g.entries.map(e => entryRow(t, g, esc(e.player), "", e.player)).join("");
+  }
+
+  return `<div class="group-card">
+    <div class="group-head">
+      <div>
+        <h3>${isDoubles ? "👥" : "🙋"} ${esc(g.name)}</h3>
+        <div class="count">${playerCount} player${playerCount === 1 ? "" : "s"}${isDoubles ? ` · ${pairs.length} pair${pairs.length === 1 ? "" : "s"} · ${waiting.length} waiting` : ""}</div>
+      </div>
+      <button class="join-btn" onclick="openJoin('${t.id}','${g.id}')" ${t.status === "locked" ? "disabled" : ""}>Join</button>
+    </div>
+    <div class="entries">${rows || `<div class="empty">No one yet — be the first!</div>`}</div>
+  </div>`;
+}
+
+function entryRow(t, g, label, tag, removeName) {
+  const rm = adminMode
+    ? `<button class="rm" title="Remove" onclick="adminRemove('${t.id}','${g.id}','${esc(removeName).replace(/'/g, "\\'")}')">✕</button>`
+    : "";
+  return `<div class="entry"><span>${label}</span>${tag}${rm}</div>`;
+}
+
+function updatedLine() {
+  $("updated").textContent = data.last_updated
+    ? `Last updated ${new Date(data.last_updated).toLocaleString()}` : "";
+}
+
+function selectT(id) { currentT = id; render(); }
+
+/* ── GitHub dispatch ──────────────────────────────────────────────── */
+async function dispatch(inputs, successMsg) {
+  const token = TOKEN_A + TOKEN_B;
+  if (!token || OWNER === "YOUR_GITHUB_ORG") {
+    toast("⚠️ Site not configured yet — set OWNER and TOKEN in index.html"); return false;
+  }
+  toast(`<span class="spinner"></span>Submitting…`, 0);
+  try {
+    const res = await fetch(`https://api.github.com/repos/${OWNER}/${REPO}/actions/workflows/submit.yml/dispatches`, {
+      method: "POST",
+      headers: {
+        "Authorization": `Bearer ${token}`,
+        "Accept": "application/vnd.github+json",
+        "Content-Type": "application/json"
+      },
+      body: JSON.stringify({ ref: "main", inputs })
+    });
+    if (res.status === 204) {
+      toast(`✅ ${successMsg}<br><small>The page refreshes automatically in a minute or two.</small>`, 9000);
+      pollForUpdate();
+      return true;
+    }
+    const body = await res.text();
+    toast(`❌ Submission failed (${res.status}). ${esc(body).slice(0, 120)}`, 8000);
+  } catch (err) {
+    toast(`❌ Network error: ${esc(err.message)}`, 8000);
+  }
+  return false;
+}
+
+function pollForUpdate() {
+  const before = data.last_updated;
+  let tries = 0;
+  const iv = setInterval(async () => {
+    tries++;
+    await loadData();
+    if (data.last_updated !== before || tries > 20) clearInterval(iv);
+  }, 15000);
+}
+
+/* ── Join ─────────────────────────────────────────────────────────── */
+function openJoin(tid, gid) {
+  const t = data.tournaments.find(x => x.id === tid);
+  const g = t.groups.find(x => x.id === gid);
+  joinCtx = { tid, gid };
+  $("joinTitle").textContent = `Join ${g.name} — ${t.name}`;
+  $("partnerWrap").style.display = g.type === "doubles" ? "block" : "none";
+  $("joinName").value = localStorage.getItem("myName") || "";
+  $("joinPartner").value = "";
+  $("joinOverlay").classList.add("show");
+}
+
+async function submitJoin() {
+  const name = $("joinName").value.trim();
+  const partner = $("joinPartner").value.trim();
+  if (!name) { toast("Please enter your name"); return; }
+  const t = data.tournaments.find(x => x.id === joinCtx.tid);
+  const g = t.groups.find(x => x.id === joinCtx.gid);
+  // client-side duplicate check for instant feedback (server validates too)
+  const taken = nm => g.entries.some(e =>
+    e.player.toLowerCase() === nm.toLowerCase() || (e.partner || "").toLowerCase() === nm.toLowerCase());
+  if (taken(name)) { toast(`❌ ${esc(name)} is already registered in ${esc(g.name)}`); return; }
+  if (partner && g.type === "doubles") {
+    const ex = g.entries.find(e => e.player.toLowerCase() === partner.toLowerCase());
+    const exAsPartner = g.entries.find(e => (e.partner || "").toLowerCase() === partner.toLowerCase());
+    if (exAsPartner || (ex && ex.partner)) { toast(`❌ ${esc(partner)} is already paired`); return; }
+  }
+  localStorage.setItem("myName", name);
+  closeOverlays();
+  await dispatch(
+    { action: "register", tournament: joinCtx.tid, group: joinCtx.gid, player: name, partner: g.type === "doubles" ? partner : "" },
+    `Registered ${esc(name)}${partner && g.type === "doubles" ? " & " + esc(partner) : ""} in ${esc(g.name)}!`
+  );
+}
+
+/* ── Admin ────────────────────────────────────────────────────────── */
+function toggleAdmin() {
+  adminMode = !adminMode;
+  $("adminPanel").classList.toggle("show", adminMode);
+  $("adminPin").value = sessionStorage.getItem("adminPin") || "";
+  render();
+}
+function pin() {
+  const p = $("adminPin").value.trim();
+  if (!p) { toast("Enter the admin PIN first"); return null; }
+  sessionStorage.setItem("adminPin", p);
+  return p;
+}
+
+async function adminPair() {
+  const p = pin(); if (!p) return;
+  if (!currentT) { toast("Select a tournament first"); return; }
+  if (!confirm("Randomly pair all remaining unpaired players in every doubles group of this tournament?")) return;
+  await dispatch({ action: "pair", tournament: currentT, pin: p }, "Random pairing requested!");
+}
+
+async function adminLockToggle() {
+  const p = pin(); if (!p) return;
+  const t = data.tournaments.find(x => x.id === currentT);
+  if (!t) { toast("Select a tournament first"); return; }
+  const action = t.status === "locked" ? "unlock" : "lock";
+  await dispatch({ action, tournament: currentT, pin: p }, `Tournament ${action}ed!`);
+}
+
+async function adminRemove(tid, gid, player) {
+  const p = pin(); if (!p) return;
+  if (!confirm(`Remove ${player}?`)) return;
+  await dispatch({ action: "remove", tournament: tid, group: gid, player, pin: p }, `Removed ${esc(player)}`);
+}
+
+function openNewTournament() {
+  if (!pin()) return;
+  $("ntCats").innerHTML = CATEGORIES.map((c, i) =>
+    `<label><input type="checkbox" value="${c}" ${/Mens|Womens|Mixed/.test(c) ? "checked" : ""}> ${c}</label>`
+  ).join("");
+  $("newTournamentOverlay").classList.add("show");
+}
+
+async function submitNewTournament() {
+  const p = pin(); if (!p) return;
+  const name = $("ntName").value.trim();
+  if (!name) { toast("Enter a tournament name"); return; }
+  const cats = [...document.querySelectorAll("#ntCats input:checked")].map(c => c.value);
+  if (!cats.length) { toast("Select at least one group"); return; }
+  closeOverlays();
+  await dispatch(
+    { action: "create_tournament", name, date: $("ntDate").value, groups: cats.join(", "), pin: p },
+    `Tournament "${esc(name)}" created!`
+  );
+}
+
+/* ── misc ─────────────────────────────────────────────────────────── */
+function closeOverlays() { document.querySelectorAll(".overlay").forEach(o => o.classList.remove("show")); }
+document.querySelectorAll(".overlay").forEach(o =>
+  o.addEventListener("click", e => { if (e.target === o) closeOverlays(); }));
+
+let toastTimer = null;
+function toast(html, ms = 4000) {
+  const el = $("toast");
+  el.innerHTML = html;
+  el.style.display = "block";
+  clearTimeout(toastTimer);
+  if (ms) toastTimer = setTimeout(() => el.style.display = "none", ms);
+}
+
+loadData();
+setInterval(loadData, 60000);   // background refresh every minute
+</script>
+</body>
+</html>
