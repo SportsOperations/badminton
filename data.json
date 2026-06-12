@@ -1,5 +1,5 @@
 {
-  "last_updated": "2026-06-12T11:07:22Z",
+  "last_updated": "2026-06-12T11:13:02Z",
   "tournaments": [
     {
       "id": "demo-open-2026",
@@ -36,6 +36,11 @@
             },
             {
               "player": "Chris",
+              "partner": null,
+              "paired_by": null
+            },
+            {
+              "player": "Test Delete Me",
               "partner": null,
               "paired_by": null
             }
