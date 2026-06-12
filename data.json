@@ -1,0 +1,36 @@
+{
+  "last_updated": "2026-06-12T00:00:00Z",
+  "tournaments": [
+    {
+      "id": "demo-open-2026",
+      "name": "Demo Open 2026",
+      "date": "2026-07-18",
+      "status": "open",
+      "groups": [
+        {
+          "id": "mens-singles",
+          "name": "Mens Singles",
+          "type": "singles",
+          "entries": [
+            { "player": "Sample Player", "partner": null, "paired_by": null }
+          ]
+        },
+        {
+          "id": "mens-doubles",
+          "name": "Mens Doubles",
+          "type": "doubles",
+          "entries": [
+            { "player": "Alex", "partner": "Ben", "paired_by": "self" },
+            { "player": "Chris", "partner": null, "paired_by": null }
+          ]
+        },
+        {
+          "id": "mixed-doubles",
+          "name": "Mixed Doubles",
+          "type": "doubles",
+          "entries": []
+        }
+      ]
+    }
+  ]
+}

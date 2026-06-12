@@ -1,0 +1,98 @@
+name: Submit
+
+# Triggered from the website via the GitHub API (workflow_dispatch).
+# Applies one action to data.json, commits, and pushes — the push then
+# triggers deploy.yml which republishes the site.
+
+on:
+  workflow_dispatch:
+    inputs:
+      action:
+        description: 'register | pair | create_tournament | add_group | lock | unlock | remove'
+        required: true
+        type: string
+      tournament:
+        description: 'Tournament id'
+        required: false
+        type: string
+      group:
+        description: 'Group id'
+        required: false
+        type: string
+      player:
+        description: 'Player name'
+        required: false
+        type: string
+      partner:
+        description: 'Partner name (doubles, optional)'
+        required: false
+        type: string
+      pin:
+        description: 'Admin PIN (admin actions only)'
+        required: false
+        type: string
+      name:
+        description: 'New tournament / group name'
+        required: false
+        type: string
+      date:
+        description: 'Tournament date YYYY-MM-DD'
+        required: false
+        type: string
+      groups:
+        description: 'Comma-separated category names (create_tournament)'
+        required: false
+        type: string
+
+permissions:
+  contents: write
+
+# Serialise data.json updates so concurrent registrations don't clobber each other
+concurrency:
+  group: data-update
+  cancel-in-progress: false
+
+jobs:
+  apply:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          ref: main
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: Apply action
+        env:
+          ACTION: ${{ inputs.action }}
+          TOURNAMENT: ${{ inputs.tournament }}
+          GROUP: ${{ inputs.group }}
+          PLAYER: ${{ inputs.player }}
+          PARTNER: ${{ inputs.partner }}
+          PIN: ${{ inputs.pin }}
+          NAME: ${{ inputs.name }}
+          DATE: ${{ inputs.date }}
+          GROUPS: ${{ inputs.groups }}
+          ADMIN_PIN: ${{ secrets.ADMIN_PIN }}
+        run: python scripts/apply_action.py
+
+      - name: Commit and push data.json
+        run: |
+          git config user.name  "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git add data.json
+          if git diff --cached --quiet; then
+            echo "⚠️  data.json unchanged — nothing to commit"
+          else
+            git commit -m "data: ${{ inputs.action }} [$(date -u '+%Y-%m-%d %H:%M UTC')]"
+            # retry in case another run pushed in between
+            for i in 1 2 3; do
+              git push && break
+              git pull --rebase && sleep 2
+            done
+            echo "✅ data.json committed and pushed"
+          fi
