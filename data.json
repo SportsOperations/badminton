@@ -1,5 +1,5 @@
 {
-  "last_updated": "2026-06-12T00:00:00Z",
+  "last_updated": "2026-06-12T11:03:25Z",
   "tournaments": [
     {
       "id": "demo-open-2026",
@@ -12,7 +12,16 @@
           "name": "Mens Singles",
           "type": "singles",
           "entries": [
-            { "player": "Sample Player", "partner": null, "paired_by": null }
+            {
+              "player": "Sample Player",
+              "partner": null,
+              "paired_by": null
+            },
+            {
+              "player": "Upendra",
+              "partner": null,
+              "paired_by": null
+            }
           ]
         },
         {
@@ -20,8 +29,16 @@
           "name": "Mens Doubles",
           "type": "doubles",
           "entries": [
-            { "player": "Alex", "partner": "Ben", "paired_by": "self" },
-            { "player": "Chris", "partner": null, "paired_by": null }
+            {
+              "player": "Alex",
+              "partner": "Ben",
+              "paired_by": "self"
+            },
+            {
+              "player": "Chris",
+              "partner": null,
+              "paired_by": null
+            }
           ]
         },
         {
