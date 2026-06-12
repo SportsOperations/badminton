@@ -5,7 +5,7 @@
       "id": "demo-open-2026",
       "name": "Demo Open 2026",
       "date": "2026-07-18",
-      "status": "open",
+      "status": "locked",
       "groups": [
         {
           "id": "mens-singles",
@@ -36,11 +36,6 @@
             },
             {
               "player": "Chris",
-              "partner": null,
-              "paired_by": null
-            },
-            {
-              "player": "Test Delete Me",
               "partner": null,
               "paired_by": null
             }
