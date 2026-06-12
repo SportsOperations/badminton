@@ -63,6 +63,7 @@
   .tag.self   { background: rgba(96,165,250,.15); color: var(--accent2); }
   .tag.random { background: rgba(251,191,36,.15); color: var(--warn); }
   .tag.waiting{ background: rgba(138,160,196,.15); color: var(--muted); }
+  .tag.pending{ background: rgba(251,191,36,.12); color: var(--warn); border: 1px dashed rgba(251,191,36,.4); }
   .entry .rm { margin-left: 6px; color: var(--danger); cursor: pointer; font-weight: 700; background: none; border: none; font-size: 1rem; }
   .empty { color: var(--muted); font-size: .85rem; padding: 8px 2px; }
 
@@ -206,6 +207,8 @@ let data = null;
 let currentT = null;     // selected tournament id
 let joinCtx = null;      // {tournamentId, groupId}
 let adminMode = false;
+let pendingOps = [];     // optimistic entries shown while the workflow commits them
+let pollTimer = null;
 
 const $ = id => document.getElementById(id);
 const esc = s => (s || "").replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
@@ -213,11 +216,50 @@ const esc = s => (s || "").replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>'
 async function loadData() {
   const res = await fetch(`data.json?t=${Date.now()}`, { cache: "no-store" });
   data = await res.json();
+  afterLoad();
+}
+
+// Reads data.json straight from the git repo via the GitHub API — fresh the moment the
+// Submit workflow commits, no need to wait for the Pages deploy. Used for fast
+// post-submit confirmation; falls back to the Pages copy on any error/rate limit.
+async function loadDataFresh() {
+  try {
+    const res = await fetch(`https://api.github.com/repos/${OWNER}/${REPO}/contents/data.json?ref=main`, {
+      headers: { "Accept": "application/vnd.github.raw+json" },
+      cache: "no-store"
+    });
+    if (!res.ok) return loadData();
+    data = await res.json();
+    afterLoad();
+  } catch {
+    return loadData();
+  }
+}
+
+function afterLoad() {
   if (!currentT || !data.tournaments.find(t => t.id === currentT)) {
     const ts = data.tournaments;
     currentT = ts.length ? ts[ts.length - 1].id : null;
   }
+  reconcilePending();
   render();
+}
+
+function reconcilePending() {
+  const now = Date.now();
+  pendingOps = pendingOps.filter(op => {
+    const t = data.tournaments.find(x => x.id === op.tid);
+    const g = t && t.groups.find(x => x.id === op.gid);
+    const nm = op.player.toLowerCase();
+    const confirmed = g && g.entries.some(e =>
+      e.player.toLowerCase() === nm || (e.partner || "").toLowerCase() === nm);
+    if (confirmed) return false;
+    if (now - op.ts > 5 * 60 * 1000) {
+      toast(`⚠️ ${esc(op.player)}'s registration didn't go through — please try again`, 9000);
+      return false;
+    }
+    return true;
+  });
 }
 
 function render() {
@@ -242,7 +284,9 @@ function groupCard(t, g) {
   const isDoubles = g.type === "doubles";
   const pairs = g.entries.filter(e => e.partner);
   const waiting = g.entries.filter(e => !e.partner);
-  const playerCount = g.entries.reduce((n, e) => n + (e.partner ? 2 : 1), 0);
+  const pending = pendingOps.filter(p => p.tid === t.id && p.gid === g.id);
+  const playerCount = g.entries.reduce((n, e) => n + (e.partner ? 2 : 1), 0)
+    + pending.reduce((n, p) => n + (p.partner ? 2 : 1), 0);
 
   let rows = "";
   if (isDoubles) {
@@ -255,6 +299,9 @@ function groupCard(t, g) {
   } else {
     rows += g.entries.map(e => entryRow(t, g, esc(e.player), "", e.player)).join("");
   }
+  rows += pending.map(p =>
+    `<div class="entry"><span>${esc(p.player)}${p.partner ? ` <span style="color:var(--muted)">&amp;</span> ${esc(p.partner)}` : ""}</span><span class="tag pending">⏳ syncing…</span></div>`
+  ).join("");
 
   return `<div class="group-card">
     <div class="group-head">
@@ -300,7 +347,7 @@ async function dispatch(inputs, successMsg) {
       body: JSON.stringify({ ref: "main", inputs })
     });
     if (res.status === 204) {
-      toast(`✅ ${successMsg}<br><small>The page refreshes automatically in a minute or two.</small>`, 9000);
+      toast(`✅ ${successMsg}`, 6000);
       pollForUpdate();
       return true;
     }
@@ -315,11 +362,14 @@ async function dispatch(inputs, successMsg) {
 function pollForUpdate() {
   const before = data.last_updated;
   let tries = 0;
-  const iv = setInterval(async () => {
+  clearInterval(pollTimer);
+  pollTimer = setInterval(async () => {
     tries++;
-    await loadData();
-    if (data.last_updated !== before || tries > 20) clearInterval(iv);
-  }, 15000);
+    await loadDataFresh();
+    const confirmed = data.last_updated !== before && pendingOps.length === 0;
+    if (confirmed) toast("✅ Confirmed");
+    if (confirmed || tries > 22) clearInterval(pollTimer);
+  }, 8000);
 }
 
 /* ── Join ─────────────────────────────────────────────────────────── */
@@ -350,11 +400,17 @@ async function submitJoin() {
     if (exAsPartner || (ex && ex.partner)) { toast(`❌ ${esc(partner)} is already paired`); return; }
   }
   localStorage.setItem("myName", name);
+  const { tid, gid } = joinCtx;
+  const pairPartner = g.type === "doubles" ? partner : "";
   closeOverlays();
-  await dispatch(
-    { action: "register", tournament: joinCtx.tid, group: joinCtx.gid, player: name, partner: g.type === "doubles" ? partner : "" },
-    `Registered ${esc(name)}${partner && g.type === "doubles" ? " & " + esc(partner) : ""} in ${esc(g.name)}!`
+  const ok = await dispatch(
+    { action: "register", tournament: tid, group: gid, player: name, partner: pairPartner },
+    `Registered ${esc(name)}${pairPartner ? " & " + esc(pairPartner) : ""} in ${esc(g.name)}`
   );
+  if (ok) {
+    pendingOps.push({ tid, gid, player: name, partner: pairPartner, ts: Date.now() });
+    render();
+  }
 }
 
 /* ── Admin ────────────────────────────────────────────────────────── */
